@@ -279,7 +279,7 @@
         "value": "port2",
         "default": 32400,
         "inputType": "port"
-      },
+      }
     ]
   },
   {
