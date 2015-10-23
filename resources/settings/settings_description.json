@@ -258,6 +258,31 @@
     ]
   },
   {
+    "section": "manualServers",
+    "values": [
+      {
+        "value": "ip1",
+        "default": "",
+        "inputType": "ip"
+      },
+      {
+        "value": "port1",
+        "default": 32400,
+        "inputType": "port"
+      },
+      {
+        "value": "ip2",
+        "default": "",
+        "inputType": "ip"
+      },
+      {
+        "value": "port2",
+        "default": 32400,
+        "inputType": "port"
+      },
+    ]
+  },
+  {
     "section": "path",
     "hidden": true,
     "values": [
