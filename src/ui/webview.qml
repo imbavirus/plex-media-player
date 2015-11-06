@@ -2,6 +2,7 @@ import QtQuick 2.4
 import Konvergo 1.0
 import QtWebEngine 1.1
 import QtWebChannel 1.0
+import QtQuick.Window 2.2
 
 KonvergoWindow
 {
@@ -9,8 +10,17 @@ KonvergoWindow
   title: "Plex Media Player"
   objectName: "mainWindow"
   visible: true
-  minimumHeight: 720
-  minimumWidth: 1280
+  minimumHeight: 240
+  minimumWidth: 426
+  height: 720
+  width: 1280
+
+  function getMaxHeightArg()
+  {
+    if (webMaxHeight > 0)
+      return "?maxHeight=" + (webMaxHeight / Screen.devicePixelRatio);
+    return ""
+  }
 
   MpvVideo
   {
@@ -26,13 +36,47 @@ KonvergoWindow
   {
     id: web
     objectName: "web"
-    width: Math.min((parent.height * 16) / 9, parent.width)
-    height: Math.min((parent.width * 9) / 16, parent.height)
     anchors.centerIn: parent
     settings.errorPageEnabled: false
     settings.localContentCanAccessRemoteUrls: true
     profile.httpUserAgent: components.system.getUserAgent()
-    url: components.settings.value("path", "startupurl")
+    url: components.settings.value("path", "startupurl") + getMaxHeightArg()
+    transformOrigin: Item.TopLeft
+
+    width: Math.min((parent.height * 16) / 9, parent.width)
+    height: Math.min((parent.width * 9) / 16, parent.height)
+
+    function getDesiredScale()
+    {
+      var verticalScale = height / 720;
+      var horizontalScale = width / 1280;
+
+      return Math.min(verticalScale, horizontalScale);
+    }
+
+    scale:
+    {
+      var desiredScale = getDesiredScale();
+      var maximumScale = webMaxHeight ? ((webMaxHeight / Screen.devicePixelRatio) / 720) : 10;
+
+      if (desiredScale < maximumScale) {
+        // Web renders at windows scale, no scaling
+        return 1;
+      } else {
+        // Web should max out at maximum scaling
+        return desiredScale / maximumScale;
+      }
+    }
+
+    zoomFactor:
+    {
+      var desiredScale = getDesiredScale();
+
+      if (desiredScale < 1)
+        return desiredScale;
+      else
+       return 1;
+    }
 
     Component.onCompleted:
     {
@@ -101,6 +145,7 @@ KonvergoWindow
     }
   }
 
+
   Rectangle
   {
     id: debug
@@ -124,8 +169,22 @@ KonvergoWindow
       anchors.bottomMargin: 54
       color: "white"
       font.pixelSize: width / 45
+      wrapMode: Text.WrapAnywhere
 
-      text: mainWindow.debugInfo
+      function windowDebug()
+      {
+        var dbg = mainWindow.debugInfo + "Window and web\n";
+        dbg += "  Window size: " + parent.width + "x" + parent.height + "\n";
+        dbg += "  DevicePixel ratio: " + Screen.devicePixelRatio + "\n";
+        dbg += "  Web Max Height: " + (webMaxHeight / Screen.devicePixelRatio) + "\n";
+        dbg += "  Web scale: " + Math.round(web.scale * 100) / 100 + "\n";
+        dbg += "  Desired Scale: " + Math.round(web.getDesiredScale() * 100) / 100 + "\n";
+        dbg += "  Zoom Factor: " + Math.round(web.zoomFactor * 100) / 100 + "\n";
+
+        return dbg;
+      }
+
+      text: windowDebug()
     }
 
     Text
@@ -134,12 +193,14 @@ KonvergoWindow
       width: (parent.width - 50) / 2
       height: parent.height - 25
       anchors.right: parent.right
+      anchors.left: debugLabel.right
       anchors.rightMargin: 64
       anchors.top: parent.top
       anchors.topMargin: 54
       anchors.bottomMargin: 54
       color: "white"
       font.pixelSize: width / 45
+      wrapMode: Text.NoWrap
 
       text: mainWindow.videoInfo
     }

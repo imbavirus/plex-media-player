@@ -183,7 +183,8 @@
         "default": "audio",
         "possible_values": [
           [ "audio", "Audio" ],
-          [ "display-resample", "Display" ]
+          [ "display-resample", "Display (resample audio)" ],
+          [ "display-adrop", "Display (drop/duplicate audio)" ]
         ]
       },
       {
@@ -254,6 +255,31 @@
           [ 42, "Large" ],
           [ 60, "Huge" ]
         ]
+      }
+    ]
+  },
+  {
+    "section": "manualServers",
+    "values": [
+      {
+        "value": "ip1",
+        "default": "",
+        "input_type": "ip"
+      },
+      {
+        "value": "port1",
+        "default": 32400,
+        "input_type": "port"
+      },
+      {
+        "value": "ip2",
+        "default": "",
+        "input_type": "ip"
+      },
+      {
+        "value": "port2",
+        "default": 32400,
+        "input_type": "port"
       }
     ]
   },

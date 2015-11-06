@@ -17,6 +17,9 @@ bool DisplayManagerWin::initialize()
   DISPLAY_DEVICEW displayInfo;
   int displayId = 0;
 
+  m_displayAdapters.clear();
+  displays.clear();
+
   while (getDisplayInfo(displayId, displayInfo))
   {
     if (displayInfo.StateFlags & (DISPLAY_DEVICE_ACTIVE | DISPLAY_DEVICE_ATTACHED))
@@ -153,13 +156,15 @@ int DisplayManagerWin::getDisplayFromPoint(int x, int y)
   foreach (int displayId, displays.keys())
   {
     int currentMode = getCurrentDisplayMode(displayId);
-    if (currentMode > 0)
+    if (currentMode >= 0)
     {
       DEVMODEW modeInfo;
       if (getModeInfo(displayId, currentMode, modeInfo))
       {
         QRect displayRect(modeInfo.dmPosition.x, modeInfo.dmPosition.y, modeInfo.dmPelsWidth,
                           modeInfo.dmPelsHeight);
+        QLOG_DEBUG() << "Looking at display" << displayId << "mode" << currentMode
+                     << "at" << displayRect;
 
         if (displayRect.contains(x, y))
           return displayId;
@@ -181,8 +186,6 @@ bool DisplayManagerWin::getDisplayInfo(int display, DISPLAY_DEVICEW& info)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 bool DisplayManagerWin::getModeInfo(int display, int mode, DEVMODEW& info)
 {
-  DISPLAY_DEVICEW displayInfo;
-
   if (m_displayAdapters.contains(display))
   {
     ZeroMemory(&info, sizeof(info));
@@ -201,11 +204,11 @@ bool DisplayManagerWin::isModeMatching(DEVMODEW& modeInfo, DMVideoModePtr videoM
     return false;
   if (videoMode->width != modeInfo.dmPelsWidth)
     return false;
-  if (videoMode->refreshRate != modeInfo.dmDisplayFrequency)
+  if ((int)(videoMode->refreshRate + 0.5f) != modeInfo.dmDisplayFrequency)
     return false;
   if (videoMode->bitsPerPixel != modeInfo.dmBitsPerPel)
     return false;
-  if (videoMode->interlaced != (modeInfo.dmDisplayFlags & DM_INTERLACED) ? true : false)
+  if (videoMode->interlaced != ((modeInfo.dmDisplayFlags & DM_INTERLACED) ? true : false))
     return false;
 
   return true;
