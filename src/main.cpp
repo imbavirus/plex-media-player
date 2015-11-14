@@ -83,6 +83,7 @@ static void elidePattern(QString& msg, const QString& substring, int chars)
 static void processLog(QString& msg)
 {
   elidePattern(msg, "X-Plex-Token=", 20);
+  elidePattern(msg, "X-Plex-Token%3D", 20);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -103,6 +104,29 @@ void initLogger()
   Logger::instance().setProcessingCallback(processLog);
 
   qInstallMessageHandler(qtMessageOutput);
+}
+
+static QsLogging::Level logLevelFromString(const QString& str)
+{
+  if (str == "trace")     return QsLogging::Level::TraceLevel;
+  if (str == "debug")     return QsLogging::Level::DebugLevel;
+  if (str == "info")      return QsLogging::Level::InfoLevel;
+  if (str == "warn")      return QsLogging::Level::WarnLevel;
+  if (str == "error")     return QsLogging::Level::ErrorLevel;
+  if (str == "fatal")     return QsLogging::Level::FatalLevel;
+  if (str == "disable")   return QsLogging::Level::OffLevel;
+  // if not valid, use default
+  return QsLogging::Level::DebugLevel;
+}
+
+static void updateLogLevel()
+{
+  QString level = SettingsComponent::Get().value(SETTINGS_SECTION_MAIN, "logLevel").toString();
+  if (level.size())
+  {
+    QLOG_INFO() << "Setting log level to:" << level;
+    Logger::instance().setLoggingLevel(logLevelFromString(level));
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -271,6 +295,8 @@ int main(int argc, char *argv[])
 
     });
     engine->load(QUrl(QStringLiteral("qrc:/ui/webview.qml")));
+
+    updateLogLevel();
 
     // run our application
     int ret = app.exec();

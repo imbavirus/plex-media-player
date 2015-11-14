@@ -149,6 +149,7 @@ void KonvergoWindow::closingWindow()
 KonvergoWindow::~KonvergoWindow()
 {
   removeEventFilter(m_eventFilter);
+  DisplayComponent::Get().setApplicationWindow(0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,6 +205,7 @@ QRect KonvergoWindow::loadGeometryRect()
 void KonvergoWindow::enableVideoWindow()
 {
   PlayerComponent::Get().setWindow(this);
+  DisplayComponent::Get().setApplicationWindow(this);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -278,7 +280,10 @@ void KonvergoWindow::focusOutEvent(QFocusEvent * ev)
   // Do this to workaround DWM compositor bugs with fullscreened OpenGL applications.
   // The compositor will not properly redraw anything when focusing other windows.
   if (visibility() == QWindow::FullScreen && SettingsComponent::Get().value(SETTINGS_SECTION_MAIN, "minimizeOnDefocus").toBool())
+  {
+    QLOG_DEBUG() << "minimizing window";
     showMinimized();
+  }
 #endif
 }
 
@@ -312,8 +317,10 @@ void KonvergoWindow::onScreenCountChanged(int newCount)
 /////////////////////////////////////////////////////////////////////////////////////////
 void KonvergoWindow::updateDebugInfo()
 {
-  if (m_debugInfo.size() == 0)
-    m_debugInfo = SystemComponent::Get().debugInformation();
+  if (m_systemDebugInfo.size() == 0)
+    m_systemDebugInfo = SystemComponent::Get().debugInformation();
+  m_debugInfo = m_systemDebugInfo;
+  m_debugInfo += DisplayComponent::Get().debugInformation();
   m_videoInfo = PlayerComponent::Get().videoInformation();
   emit debugInfoChanged();
 }
@@ -340,6 +347,10 @@ void KonvergoWindow::handleHostCommand(QString hostCommand)
   else if (hostCommand == "player")
   {
     PlayerComponent::Get().userCommand(arguments);
+  }
+  else if (hostCommand == "switch")
+  {
+    DisplayComponent::Get().switchCommand(arguments);
   }
   else if (hostCommand == "toggleDebug")
   {
@@ -368,6 +379,18 @@ void KonvergoWindow::handleHostCommand(QString hostCommand)
   else if (hostCommand == "crash!")
   {
     *(volatile int*)0=0;
+  }
+  else if (hostCommand == "poweroff")
+  {
+    PowerComponent::Get().PowerOff();
+  }
+  else if (hostCommand == "suspend")
+  {
+    PowerComponent::Get().Suspend();
+  }
+  else if (hostCommand == "reboot")
+  {
+    PowerComponent::Get().Reboot();
   }
   else
   {
