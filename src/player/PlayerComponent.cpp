@@ -11,6 +11,7 @@
 #include "settings/SettingsSection.h"
 
 #include "PlayerQuickItem.h"
+#include "input/InputComponent.h"
 
 #include "QsLog.h"
 
@@ -41,6 +42,12 @@ PlayerComponent::PlayerComponent(QObject* parent)
 
   m_reloadAudioTimer.setSingleShot(true);
   connect(&m_reloadAudioTimer, &QTimer::timeout, this, &PlayerComponent::onReloadAudio);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+void PlayerComponent::componentPostInitialize()
+{
+  InputComponent::Get().registerHostCommand("player", this, "userCommand");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -761,7 +768,7 @@ void PlayerComponent::updateVideoSettings()
 
 #ifndef TARGET_RPI
   double display_fps = DisplayComponent::Get().currentRefreshRate();
-  mpv::qt::set_option_variant(m_mpv, "display-fps", display_fps);
+  mpv::qt::set_property_variant(m_mpv, "display-fps", display_fps);
 #endif
 
   setAudioDelay(m_playbackAudioDelay);
@@ -778,9 +785,9 @@ void PlayerComponent::userCommand(const QString& command)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-static QString get_mpv_osd(mpv_handle *ctx, const char *property)
+static QString get_mpv_osd(mpv_handle *ctx, const QString& property)
 {
-  char *s = mpv_get_property_osd_string(ctx, property);
+  char *s = mpv_get_property_osd_string(ctx, property.toUtf8().data());
   if (!s)
     return "-";
   QString r = QString::fromUtf8(s);
@@ -790,6 +797,26 @@ static QString get_mpv_osd(mpv_handle *ctx, const char *property)
 
 #define MPV_PROPERTY(p) get_mpv_osd(m_mpv, p)
 #define MPV_PROPERTY_BOOL(p) (mpv::qt::get_property_variant(m_mpv, p).toBool())
+
+/////////////////////////////////////////////////////////////////////////////////////////
+void PlayerComponent::appendAudioFormat(QTextStream& info, const QString& property) const
+{
+  // Guess if it's a passthrough format. Don't show the channel layout in this
+  // case, because it's confusing.
+  QString audio_format = MPV_PROPERTY(property + "/format");
+  if (audio_format.startsWith("spdif-"))
+  {
+    info << "passthrough (" << audio_format.mid(6) << ")";
+  }
+  else
+  {
+    QString hr = MPV_PROPERTY(property + "/hr-channels");
+    QString full = MPV_PROPERTY(property + "/channels");
+    info << hr;
+    if (hr != full)
+      info << " (" << full << ")";
+  }
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 QString PlayerComponent::videoInformation() const
@@ -825,19 +852,12 @@ QString PlayerComponent::videoInformation() const
   info << "Audio: " << endl;
   info << "Codec: " << MPV_PROPERTY("audio-codec") << endl;
   info << "Bitrate: " << MPV_PROPERTY("audio-bitrate") << endl;
-  info << "Channels (input): " << MPV_PROPERTY("audio-params/channels") << endl;
-  // Guess if it's a passthrough format. Don't show the channel layout in this
-  // case, because it's confusing.
-  QString audio_format = MPV_PROPERTY("audio-out-params/format");
-  if (audio_format.startsWith("spdif-"))
-  {
-    info << "Channels (output): passthrough (" << audio_format << ")";
-  }
-  else
-  {
-    info << "Channels (output): " << MPV_PROPERTY("audio-out-params/hr-channels")
-                                  << " (" << MPV_PROPERTY("audio-out-params/channels") << ")" << endl;
-  }
+  info << "Channels (input): ";
+  appendAudioFormat(info, "audio-params");
+  info << endl;
+  info << "Channels (output): ";
+  appendAudioFormat(info, "audio-out-params");
+  info << endl;
   info << endl;
   info << "Performance: " << endl;
   info << "A/V: " << MPV_PROPERTY("avsync") << endl;
@@ -861,3 +881,4 @@ QString PlayerComponent::videoInformation() const
   info << flush;
   return infoStr;
 }
+

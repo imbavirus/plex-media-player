@@ -42,6 +42,18 @@ public:
     raise();
   }
 
+  Q_SLOT void toggleDebug();
+
+  Q_SLOT void toggleFullscreen()
+  {
+    setFullScreen(!isFullScreen());
+  }
+
+  Q_SLOT void reloadWeb()
+  {
+    emit reloadWebClient();
+  }
+
 Q_SIGNALS:
   void fullScreenSwitched();
   void enableVideoWindowSignal();
@@ -59,7 +71,6 @@ private slots:
   void updateMainSectionSettings(const QVariantMap& values);
   void updateFullscreenState();
   void onScreenCountChanged(int newCount);
-  void handleHostCommand(QString hostCommand);
   void updateDebugInfo();
   void playerWindowVisible(bool visible);
   void playerPlaybackStarting();

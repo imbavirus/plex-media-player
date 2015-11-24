@@ -30,7 +30,7 @@
       },
       {
         "value": "minimizeOnDefocus",
-        "default": true,
+        "default": false,
         "platforms": [ "windows" ],
         "hidden": true
       },
@@ -73,6 +73,12 @@
           [ "fatal", "fatal" ],
           [ "disable", "disable" ]
         ]
+      },
+      {
+        "value": "useOpenGL",
+        "default": false,
+        "hidden": true,
+        "platforms": [ "windows" ]
       }
     ]
   },
@@ -283,7 +289,7 @@
       },
       {
         "value": "port1",
-        "default": 32400,
+        "default": "32400",
         "input_type": "port"
       },
       {
@@ -293,7 +299,7 @@
       },
       {
         "value": "port2",
-        "default": 32400,
+        "default": "32400",
         "input_type": "port"
       }
     ]

@@ -18,7 +18,8 @@ class SystemComponent : public ComponentBase
 public:
   virtual bool componentExport() { return true; }
   virtual const char* componentName() { return "system"; }
-  virtual bool componentInitialize() { return true; }
+  virtual bool componentInitialize();
+  virtual void componentPostInitialize();
 
   Q_INVOKABLE QVariantMap systemInformation() const;
   Q_INVOKABLE void exit();
@@ -40,6 +41,8 @@ public:
   Q_INVOKABLE void userInformation(const QVariantMap& userModel);
 
   Q_INVOKABLE void openExternalUrl(const QString& url);
+
+  Q_INVOKABLE void runUserScript(const QString& script);
 
   // possible os types type enum
   enum PlatformType
@@ -68,9 +71,10 @@ public:
 
   inline bool isOpenELEC() { return m_platformType == platformTypeOpenELEC; }
 
+  Q_INVOKABLE void crashApp();
+
 private:
   SystemComponent(QObject* parent = 0);
-
   static QMap<QString, QString> networkInterfaces();
 
   QTimer* m_mouseOutTimer;
@@ -78,6 +82,7 @@ private:
   PlatformArch m_platformArch;
   QString m_overridePlatform;
   bool m_doLogMessages;
+
 };
 
 #endif

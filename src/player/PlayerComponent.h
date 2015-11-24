@@ -25,6 +25,7 @@ public:
   virtual const char* componentName() { return "player"; }
   virtual bool componentExport() { return true; }
   virtual bool componentInitialize();
+  virtual void componentPostInitialize();
   
   explicit PlayerComponent(QObject* parent = 0);
   virtual ~PlayerComponent();
@@ -149,6 +150,7 @@ private:
   // was actually changed.
   bool switchDisplayFrameRate();
   void checkCurrentAudioDevice(const QSet<QString>& old_devs, const QSet<QString>& new_devs);
+  void appendAudioFormat(QTextStream& info, const QString& property) const;
 
   mpv::qt::Handle m_mpv;
 
