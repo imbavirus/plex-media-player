@@ -42,7 +42,7 @@ public:
 
   Q_INVOKABLE void openExternalUrl(const QString& url);
 
-  Q_INVOKABLE void runUserScript(const QString& script);
+  Q_INVOKABLE void runUserScript(QString script);
 
   // possible os types type enum
   enum PlatformType
@@ -72,6 +72,9 @@ public:
   inline bool isOpenELEC() { return m_platformType == platformTypeOpenELEC; }
 
   Q_INVOKABLE void crashApp();
+
+signals:
+  void hostMessage(const QString& message);
 
 private:
   SystemComponent(QObject* parent = 0);

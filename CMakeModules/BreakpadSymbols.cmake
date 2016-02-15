@@ -12,7 +12,7 @@ endif(NOT CRASHDUMP_SECRET)
 cmake_dependent_option(GENERATE_SYMBOLS "Should we generate symbols for binaries?" ON "ENABLE_CRASHDUMP" OFF)
 
 function(dumpsyms target symfile)
-  find_program(DUMP_SYMS dump_syms HINTS /usr/bin/ ${DEPENDENCY_ROOT}/bin ${DEPENDENCY_ROOT}/lib)
+  find_program(DUMP_SYMS dump_syms HINTS /usr/bin/ PATH_SUFFIXES lib bin)
   if(GENERATE_SYMBOLS AND NOT DUMP_SYMS)
     message(WARNING "dump_syms not found")
   endif()
@@ -25,27 +25,19 @@ function(dumpsyms target symfile)
       )
       set(EXTRA_DUMPSYMS_ARGS -g "${CMAKE_CURRENT_BINARY_DIR}/${MAIN_NAME}.dSYM")
     endif(APPLE)
-
-    unset(COMPRESS)
-    find_program(COMPRESS_XZ xz HINTS c:/mingw /usr/local/bin)
-    find_program(COMPRESS_BZ bzip2 HINTS c:/mingw /usr/local/bin)
-    if(COMPRESS_XZ)
-      set(COMPRESS_EXT xz)
-      file(TO_NATIVE_PATH ${COMPRESS_XZ} COMPRESS)
-    elseif(COMPRESS_BZ)
-      set(COMPRESS_EXT bz2)
-      file(TO_NATIVE_PATH ${COMPRESS_BZ} COMPRESS)
-    endif(COMPRESS_XZ)
     
     set(TARGET_FILE $<TARGET_FILE:${target}>)
     if(WIN32)
       set(TARGET_FILE $<TARGET_PDB_FILE:${target}>)
     endif(WIN32)
 
+    file(TO_NATIVE_PATH ${PYTHON_EXECUTABLE} PYTHON_EXE)
+    file(TO_NATIVE_PATH ${PROJECT_SOURCE_DIR}/scripts/compress.py SCRIPT_PATH)
+
     add_custom_command(
       TARGET ${target} POST_BUILD
-      BYPRODUCTS ${symfile}.${COMPRESS_EXT}
-      COMMAND ${DUMP_SYMS} ${EXTRA_DUMPSYMS_ARGS} ${TARGET_FILE} | ${COMPRESS} > ${symfile}.${COMPRESS_EXT}
+      BYPRODUCTS ${symfile}.bz2
+      COMMAND ${DUMP_SYMS} ${EXTRA_DUMPSYMS_ARGS} ${TARGET_FILE} | ${PYTHON_EXE} -u ${SCRIPT_PATH} > ${symfile}.bz2
       COMMENT Generating symbols
     )
   endif(GENERATE_SYMBOLS AND DUMP_SYMS)

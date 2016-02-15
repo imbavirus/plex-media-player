@@ -8,6 +8,12 @@
 #include <mpv/opengl_cb.h>
 #include <mpv/qthelper.hpp>
 
+#ifdef Q_OS_WIN32
+#include <windows.h>
+#else
+typedef void* HANDLE;
+#endif
+
 #include "PlayerComponent.h"
 
 class PlayerRenderer : public QObject
@@ -21,10 +27,15 @@ class PlayerRenderer : public QObject
   void render();
   void swap();
 
+public slots:
+  void onPlaybackActive(bool active);
+
+private:
   mpv::qt::Handle m_mpv;
   mpv_opengl_cb_context* m_mpvGL;
   QQuickWindow* m_window;
   QSize m_size;
+  HANDLE m_hAvrtHandle;
 };
 
 class PlayerQuickItem : public QQuickItem

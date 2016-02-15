@@ -85,6 +85,7 @@ void SystemComponent::componentPostInitialize()
 {
   InputComponent::Get().registerHostCommand("crash!", this, "crashApp");
   InputComponent::Get().registerHostCommand("script", this, "runUserScript");
+  InputComponent::Get().registerHostCommand("message", this, "hostMessage");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -209,7 +210,8 @@ QString SystemComponent::debugInformation()
   stream << "  Web Client URL: " << SettingsComponent::Get().value(SETTINGS_SECTION_PATH, "startupurl").toString() << endl;
   stream << "  Platform: " << getPlatformTypeString() << "-" << getPlatformArchString() << endl;
   stream << "  User-Agent: " << getUserAgent() << endl;
-  stream << "  Qt version: " << qVersion() << endl;
+  stream << "  Qt version: " << qVersion() << QString("(%1)").arg(Version::GetQtDepsVersion()) << endl;
+  stream << "  Depends version: " << Version::GetDependenciesVersion() << endl;
   stream << endl;
 
   stream << "Files" << endl;
@@ -256,11 +258,9 @@ QStringList SystemComponent::networkAddresses() const
 void SystemComponent::userInformation(const QVariantMap& userModel)
 {
   QStringList roleList;
-  auto roles = userModel.value("roles").toMap();
-  foreach (const QString& key, roles.keys())
-  {
-    if (roles.value(key).toBool())
-      roleList << key;
+  foreach (const QVariant& role, userModel.value("roles").toList())
+  { 
+    roleList << role.toMap().value("id").toString();
   }
 
   SettingsComponent::Get().setUserRoleList(roleList);
@@ -273,7 +273,7 @@ void SystemComponent::openExternalUrl(const QString& url)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-void SystemComponent::runUserScript(const QString& script)
+void SystemComponent::runUserScript(QString script)
 {
   // We take the path the user supplied and run it through fileInfo and
   // look for the fileName() part, this is to avoid people sharing keymaps

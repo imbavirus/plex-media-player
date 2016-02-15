@@ -83,6 +83,8 @@ void InputComponent::remapInput(const QString &source, const QString &keycode, f
   // hide mouse if it's visible.
   SystemComponent::Get().setCursorVisibility(false);
 
+  QLOG_DEBUG() << "Input received: source:" << source << "keycode:" << keycode;
+
   QString action = m_mappings->mapToAction(source, keycode);
   if (!action.isEmpty())
   {
@@ -104,18 +106,12 @@ void InputComponent::remapInput(const QString &source, const QString &keycode, f
         ReceiverSlot* recvSlot = m_hostCommands.value(hostCommand);
         if (recvSlot)
         {
-          QString slotWithArgs = QString("%1(QString)").arg(QString::fromLatin1(recvSlot->slot));
-          QLOG_DEBUG() << "Looking for method:" << slotWithArgs;
-          if (recvSlot->receiver->metaObject()->indexOfMethod(slotWithArgs.toLatin1().data()) != -1)
-          {
-            QMetaObject::invokeMethod(recvSlot->receiver, recvSlot->slot.data(),
-                                      Qt::AutoConnection, Q_ARG(const QString&, hostArguments));
-          }
-          else
-          {
-            QLOG_DEBUG() << "Method has no arguments:" << recvSlot->slot.data();
-            QMetaObject::invokeMethod(recvSlot->receiver, recvSlot->slot.data(), Qt::AutoConnection);
-          }
+          QLOG_DEBUG() << "Invoking slot" << qPrintable(recvSlot->slot.data());
+          QGenericArgument arg0 = QGenericArgument();
+          if (recvSlot->hasArguments)
+            arg0 = Q_ARG(const QString&, hostArguments);
+          QMetaObject::invokeMethod(recvSlot->receiver, recvSlot->slot.data(),
+                                    Qt::AutoConnection, arg0);
         }
       }
       else
@@ -125,7 +121,6 @@ void InputComponent::remapInput(const QString &source, const QString &keycode, f
     }
     else
     {
-      QLOG_DEBUG() << "Sending action:" << action;
       emit receivedAction(action);
     }
   }
@@ -141,8 +136,25 @@ void InputComponent::registerHostCommand(const QString& command, QObject* receiv
   ReceiverSlot* recvSlot = new ReceiverSlot;
   recvSlot->receiver = receiver;
   recvSlot->slot = QMetaObject::normalizedSignature(slot);
+  recvSlot->hasArguments = false;
 
   QLOG_DEBUG() << "Adding host command:" << qPrintable(command) << "mapped to" << qPrintable(QString(receiver->metaObject()->className()) + "::" + recvSlot->slot);
 
   m_hostCommands.insert(command, recvSlot);
+
+  auto slotWithArgs = QString("%1(QString)").arg(QString::fromLatin1(recvSlot->slot)).toLatin1();
+  auto slotWithoutArgs = QString("%1()").arg(QString::fromLatin1(recvSlot->slot)).toLatin1();
+  if (recvSlot->receiver->metaObject()->indexOfMethod(slotWithArgs.data()) != -1)
+  {
+    QLOG_DEBUG() << "Host command maps to method with an argument.";
+    recvSlot->hasArguments = true;
+  }
+  else if (recvSlot->receiver->metaObject()->indexOfMethod(slotWithoutArgs.data()) != -1)
+  {
+    QLOG_DEBUG() << "Host command maps to method without arguments.";
+  }
+  else
+  {
+    QLOG_ERROR() << "Slot for host command missing, or has incorrect signature!";
+  }
 }

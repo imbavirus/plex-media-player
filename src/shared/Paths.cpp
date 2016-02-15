@@ -2,6 +2,7 @@
 // Created by Tobias Hieta on 01/09/15.
 //
 
+#include "settings/SettingsSection.h"
 #include "Paths.h"
 
 #include <QDir>
@@ -70,5 +71,22 @@ QString Paths::logDir(const QString& file)
   ldir.mkpath(ldir.absolutePath() + "/logs");
   ldir.cd("logs");
   return ldir.filePath(file);
+#endif
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+QString Paths::socketName(const QString& serverName)
+{
+  QString userName = qgetenv("USER");
+
+  if(userName.isEmpty())
+    userName = qgetenv("USERNAME");
+  if(userName.isEmpty())
+    userName = "unknown";
+
+#ifdef Q_OS_UNIX
+  return QString("/tmp/pmp_%1_%2.sock").arg(serverName).arg(userName);
+#else
+  return QString("pmp_%1_%2.sock").arg(serverName).arg(userName);
 #endif
 }

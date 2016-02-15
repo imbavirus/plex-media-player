@@ -19,6 +19,11 @@
 #include <string.h>
 #include <shared/Paths.h>
 
+#ifdef TARGET_RPI
+#include <bcm_host.h>
+#include <interface/vmcs_host/vcgencmd.h>
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 static void wakeup_cb(void *context)
 {
@@ -30,7 +35,8 @@ static void wakeup_cb(void *context)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 PlayerComponent::PlayerComponent(QObject* parent)
   : ComponentBase(parent), m_lastPositionUpdate(0.0), m_playbackAudioDelay(0), m_playbackStartSent(false), m_window(0), m_mediaFrameRate(0),
-  m_restoreDisplayTimer(this), m_reloadAudioTimer(this)
+  m_restoreDisplayTimer(this), m_reloadAudioTimer(this),
+  m_streamSwitchImminent(false)
 {
   qmlRegisterType<PlayerQuickItem>("Konvergo", 1, 0, "MpvVideo"); // deprecated name
   qmlRegisterType<PlayerQuickItem>("Konvergo", 1, 0, "KonvergoVideo");
@@ -74,16 +80,16 @@ bool PlayerComponent::componentInitialize()
   mpv_set_option_string(m_mpv, "config", "yes");
   mpv_set_option_string(m_mpv, "config-dir", Paths::dataDir().toUtf8().data());
 
-  // We don't need this, so avoid initializing fontconfig.
-  mpv_set_option_string(m_mpv, "use-text-osd", "no");
+  // Disable native OSD if mpv_command_string() is used.
+  mpv_set_option_string(m_mpv, "osd-level", "0");
 
   // This forces the player not to rebase playback time to 0 with mkv. We
   // require this, because mkv transcoding lets files start at times other
   // than 0, and web-client expects that we return these times unchanged.
   mpv::qt::set_option_variant(m_mpv, "demuxer-mkv-probe-start-time", false);
 
-  // Always use the system mixer.
-  mpv_set_option_string(m_mpv, "softvol", "no");
+  // Always use the internal mixer by default.
+  mpv_set_option_string(m_mpv, "softvol", "yes");
 
   // Just discard audio output if no audio device could be opened. This gives
   // us better flexibility how to react to such errors (instead of just
@@ -109,9 +115,12 @@ bool PlayerComponent::componentInitialize()
   // interlaved audio/video. Setting it too low increases sensitivity to network
   // issues, and could cause playback failure with "bad" files.
   mpv::qt::set_option_variant(m_mpv, "demuxer-max-bytes", 50 * 1024 * 1024); // bytes
+  // Specifically for enabling mpeg4.
+  mpv::qt::set_option_variant(m_mpv, "hwdec-codecs", "all");
 #endif
 
   mpv_observe_property(m_mpv, 0, "pause", MPV_FORMAT_FLAG);
+  mpv_observe_property(m_mpv, 0, "core-idle", MPV_FORMAT_FLAG);
   mpv_observe_property(m_mpv, 0, "cache-buffering-state", MPV_FORMAT_INT64);
   mpv_observe_property(m_mpv, 0, "playback-time", MPV_FORMAT_DOUBLE);
   mpv_observe_property(m_mpv, 0, "vo-configured", MPV_FORMAT_FLAG);
@@ -143,6 +152,8 @@ bool PlayerComponent::componentInitialize()
 
   connect(SettingsComponent::Get().getSection(SETTINGS_SECTION_AUDIO), &SettingsSection::valuesUpdated,
           this, &PlayerComponent::setAudioConfiguration);
+
+  initializeCodecSupport();
 
   return true;
 }
@@ -243,6 +254,12 @@ void PlayerComponent::queueMedia(const QString& url, const QVariantMap& options,
   mpv::qt::command_variant(m_mpv, command);
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////
+void PlayerComponent::streamSwitch()
+{
+  m_streamSwitchImminent = true;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 bool PlayerComponent::switchDisplayFrameRate()
 {
@@ -253,11 +270,6 @@ bool PlayerComponent::switchDisplayFrameRate()
     QLOG_DEBUG() << "Not switching refresh-rate (disabled by settings).";
     return false;
   }
-
-#ifdef TARGET_RPI
-  QLOG_DEBUG() << "Refresh-rate auto switching is disabled on the RPI in this version.";
-  return false;
-#endif
 
   bool fs = SettingsComponent::Get().value(SETTINGS_SECTION_MAIN, "fullscreen").toBool();
 #if KONVERGO_OPENELEC
@@ -341,7 +353,9 @@ void PlayerComponent::handleMpvEvent(mpv_event *event)
       emit playbackEnded(m_CurrentUrl);
       m_CurrentUrl = "";
 
-      m_restoreDisplayTimer.start(0);
+      if (!m_streamSwitchImminent)
+        m_restoreDisplayTimer.start(0);
+      m_streamSwitchImminent = false;
       break;
     }
     case MPV_EVENT_IDLE:
@@ -364,6 +378,10 @@ void PlayerComponent::handleMpvEvent(mpv_event *event)
       {
         int state = *(int *)prop->data;
         emit paused(state);
+      }
+      else if (strcmp(prop->name, "core-idle") == 0 && prop->format == MPV_FORMAT_FLAG)
+      {
+        emit playbackActive(!*(int *)prop->data);
       }
       else if (strcmp(prop->name, "cache-buffering-state") == 0 && prop->format == MPV_FORMAT_INT64)
       {
@@ -522,19 +540,35 @@ void PlayerComponent::setAudioDevice(const QString& name)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void PlayerComponent::setVolume(quint8 volume)
+void PlayerComponent::setVolume(int volume)
 {
   // Will fail if no audio output opened (i.e. no file playing)
   mpv::qt::set_property_variant(m_mpv, "volume", volume);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-quint8 PlayerComponent::volume()
+int PlayerComponent::volume()
 {
   QVariant volume = mpv::qt::get_property_variant(m_mpv, "volume");
   if (volume.isValid())
     return volume.toInt();
   return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void PlayerComponent::setMuted(bool muted)
+{
+  // Will fail if no audio output opened (i.e. no file playing)
+  mpv::qt::set_property_variant(m_mpv, "mute", muted);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+bool PlayerComponent::muted()
+{
+  QVariant mute = mpv::qt::get_property_variant(m_mpv, "mute");
+  if (mute.isValid())
+    return mute.toBool();
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -702,6 +736,11 @@ void PlayerComponent::setAudioConfiguration()
 
   // set the channel layout
   QVariant layout = SettingsComponent::Get().value(SETTINGS_SECTION_AUDIO, "channels");
+
+  // always force either stereo or transcoding
+  if (deviceType == AUDIO_DEVICE_TYPE_SPDIF)
+    layout = "2.0";
+
   mpv::qt::set_option_variant(m_mpv, "audio-channels", layout);
 
   // if the user has indicated that PCM only works for stereo, and that
@@ -778,7 +817,34 @@ void PlayerComponent::updateVideoSettings()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-void PlayerComponent::userCommand(const QString& command)
+void PlayerComponent::initializeCodecSupport()
+{
+  QMap<QString, QString> all = { {"vc1", "WVC1"}, {"mpeg2video", "MPG2"} };
+  for (auto name : all.keys())
+  {
+    bool ok = true;
+#ifdef TARGET_RPI
+    char res[100] = "";
+    bcm_host_init();
+    if (vc_gencmd(res, sizeof(res), "codec_enabled %s", all[name].toUtf8().data()))
+      res[0] = '\0'; // error
+    ok = !!strstr(res, "=enabled");
+#endif
+    m_codecSupport[name] = ok;
+    QLOG_INFO() << "Codec" << name << (ok ? "present" : "disabled");
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+bool PlayerComponent::checkCodecSupport(const QString& codec)
+{
+  if (m_codecSupport.contains(codec))
+    return m_codecSupport[codec];
+  return true; // doesn't matter if unknown codecs are reported as "ok"
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+void PlayerComponent::userCommand(QString command)
 {
   QByteArray cmd_utf8 = command.toUtf8();
   mpv_command_string(m_mpv, cmd_utf8.data());
@@ -839,10 +905,10 @@ QString PlayerComponent::videoInformation() const
   info << "Codec: " << MPV_PROPERTY("video-codec") << endl;
   info << "Size: " << MPV_PROPERTY("video-params/dw") << "x"
                    << MPV_PROPERTY("video-params/dh") << endl;
-  info << "FPS: " << MPV_PROPERTY("fps") << endl;
+  info << "FPS (container): " << MPV_PROPERTY("fps") << endl;
+  info << "FPS (filters): " << MPV_PROPERTY("estimated-vf-fps") << endl;
   info << "Aspect: " << MPV_PROPERTY("video-aspect") << endl;
   info << "Bitrate: " << MPV_PROPERTY("video-bitrate") << endl;
-  info << "Display Sync: " << MPV_PROPERTY("display-sync-active") << endl;
   double display_fps = DisplayComponent::Get().currentRefreshRate();
   info << "Display FPS: " << MPV_PROPERTY("display-fps")
                           << " (" << display_fps << ")" << endl;
@@ -862,6 +928,22 @@ QString PlayerComponent::videoInformation() const
   info << "Performance: " << endl;
   info << "A/V: " << MPV_PROPERTY("avsync") << endl;
   info << "Dropped frames: " << MPV_PROPERTY("vo-drop-frame-count") << endl;
+  bool disp_sync = MPV_PROPERTY_BOOL("display-sync-active");
+  info << "Display Sync: ";
+  if (!disp_sync)
+  {
+     info << "no" << endl;
+  }
+  else
+  {
+    info << "yes (ratio " << MPV_PROPERTY("vsync-ratio") << ")" << endl;
+    info << "Mistimed frames: " << MPV_PROPERTY("mistimed-frame-count")
+                                << "/" << MPV_PROPERTY("vo-delayed-frame-count") << endl;
+    info << "Measured FPS: " << MPV_PROPERTY("estimated-display-fps")
+                             << " (" << MPV_PROPERTY("vsync-jitter") << ")" << endl;
+    info << "V. speed corr.: " << MPV_PROPERTY("video-speed-correction") << endl;
+    info << "A. speed corr.: " << MPV_PROPERTY("audio-speed-correction") << endl;
+  }
   info << endl;
   info << "Cache:" << endl;
   info << "Seconds: " << MPV_PROPERTY("demuxer-cache-duration") << endl;

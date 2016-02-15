@@ -76,8 +76,8 @@
       },
       {
         "value": "useOpenGL",
+        // Warning: the default must be the same as the one in preinitQt().
         "default": false,
-        "hidden": true,
         "platforms": [ "windows" ]
       }
     ]
@@ -165,8 +165,7 @@
       },
       {
         "value": "refreshrate.auto_switch",
-        "default": false,
-        "platforms_excluded": "oe_rpi"
+        "default": false
       },
       {
         "value": "refreshrate.delay",

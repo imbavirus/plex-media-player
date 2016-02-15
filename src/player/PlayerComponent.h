@@ -7,6 +7,7 @@
 #include <QSet>
 #include <QQuickWindow>
 #include <QTimer>
+#include <QTextStream>
 
 #include "ComponentManager.h"
 
@@ -51,12 +52,23 @@ public:
   // Stop playback and clear all queued items.
   Q_INVOKABLE virtual void stop();
 
+  // A full reload of the stream is imminent (stop() + load())
+  // Used ofr not resetting display mode with the next stop() call.
+  Q_INVOKABLE virtual void streamSwitch();
+
   Q_INVOKABLE virtual void pause();
   Q_INVOKABLE virtual void play();
   
-  /* 0-100 volume 0=mute and 100=normal */
-  Q_INVOKABLE virtual void setVolume(quint8 volume);
-  Q_INVOKABLE virtual quint8 volume();
+  // 0-100 volume 0=mute and 100=normal
+  // Ignored if no audio output active (e.g. when no file is playing).
+  Q_INVOKABLE virtual void setVolume(int volume);
+  // Returns 0 if no audio output active.
+  Q_INVOKABLE virtual int volume();
+
+  // Ignored if no audio output active.
+  Q_INVOKABLE virtual void setMuted(bool muted);
+  // Returns 0 if no audio output active.
+  Q_INVOKABLE virtual bool muted();
 
   // Returns a QVariant of the following format:
   // QVariantList                   (list of audio device entries)
@@ -78,7 +90,12 @@ public:
   // only. If no video is running, render a black background only.
   Q_INVOKABLE virtual void setVideoOnlyMode(bool enable);
 
-  void userCommand(const QString& command);
+  // Currently is meant to check for "vc1" and "mpeg2video". Will return whether
+  // it can be natively decoded. Will return true for all other codecs,
+  // including unknown codec names.
+  Q_INVOKABLE virtual bool checkCodecSupport(const QString& codec);
+
+  Q_INVOKABLE void userCommand(QString command);
 
   const mpv::qt::Handle getMpvHandle() const { return m_mpv; }
 
@@ -117,6 +134,9 @@ Q_SIGNALS:
   // playback starts normally
   void playbackStarting();
   void paused(bool paused);
+  // true if the video (or music) is actually
+  // false if nothing is loaded, playback is paused, during seeking, or media is being loaded
+  void playbackActive(bool active);
   void windowVisible(bool visible);
   // emitted as soon as the duration of the current file is known
   void updateDuration(qint64 milliseconds);
@@ -151,6 +171,7 @@ private:
   bool switchDisplayFrameRate();
   void checkCurrentAudioDevice(const QSet<QString>& old_devs, const QSet<QString>& new_devs);
   void appendAudioFormat(QTextStream& info, const QString& property) const;
+  void initializeCodecSupport();
 
   mpv::qt::Handle m_mpv;
 
@@ -163,6 +184,8 @@ private:
   QTimer m_restoreDisplayTimer;
   QTimer m_reloadAudioTimer;
   QSet<QString> m_audioDevices;
+  bool m_streamSwitchImminent;
+  QMap<QString, bool> m_codecSupport;
 };
 
 #endif // PLAYERCOMPONENT_H

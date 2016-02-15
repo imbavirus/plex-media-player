@@ -102,6 +102,8 @@ void DisplayComponent::monitorChange()
 //////////////////////////////////////////////////////////////////////////////////////////////////
 bool DisplayComponent::switchToBestVideoMode(float frameRate)
 {
+  initializeDisplayManager();
+
   if (!m_displayManager)
     return false;
 
@@ -147,6 +149,8 @@ bool DisplayComponent::switchToBestVideoMode(float frameRate)
 //////////////////////////////////////////////////////////////////////////////////////////////////
 bool DisplayComponent::switchToBestOverallVideoMode(int display)
 {
+  initializeDisplayManager();
+
   if (!m_displayManager || !m_displayManager->isValidDisplay(display))
     return false;
 
@@ -196,6 +200,8 @@ double DisplayComponent::currentRefreshRate()
 //////////////////////////////////////////////////////////////////////////////////////////////////
 bool DisplayComponent::restorePreviousVideoMode()
 {
+  initializeDisplayManager();
+
   if (!m_displayManager)
     return false;
 
@@ -300,29 +306,46 @@ QString DisplayComponent::debugInformation()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-static bool modeEqualsFuzzy(const DMVideoMode& m1, const DMVideoMode& m2, float tolerance)
+static float modeDistance(const DMVideoMode& m1, const DMVideoMode& m2)
 {
-  return m1.height == m2.height &&
-         m1.width == m2.width &&
-         fabs(m1.refreshRate - m2.refreshRate) < tolerance &&
-         m1.bitsPerPixel == m2.bitsPerPixel &&
-         m1.interlaced == m2.interlaced;
+  if (m1.height == m2.height &&
+      m1.width == m2.width &&
+      m1.bitsPerPixel == m2.bitsPerPixel &&
+      m1.interlaced == m2.interlaced)
+    return fabs(m1.refreshRate - m2.refreshRate);
+  return -1;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
 void DisplayComponent::switchCommand(QString command)
 {
   if (!m_displayManager)
+  {
+    QLOG_ERROR() << "Display manager not set";
     return;
+  }
+
+  if (!initializeDisplayManager())
+  {
+    QLOG_ERROR() << "Could not reinitialize display manager";
+    return;
+  }
 
   int currentDisplay = getApplicationDisplay();
   if (currentDisplay < 0)
+  {
+    QLOG_ERROR() << "Current display not found";
     return;
+  }
   int id = m_displayManager->getCurrentDisplayMode(currentDisplay);
   if (id < 0)
+  {
+    QLOG_ERROR() << "Current mode not found";
     return;
+  }
   DMVideoMode current_mode = *m_displayManager->displays[currentDisplay]->videoModes[id];
   DMVideoMode mode = current_mode;
+  int best_mode = -1; // if -1, select it by using the mode variable above
 
   foreach (QString a, command.split(" "))
   {
@@ -343,6 +366,14 @@ void DisplayComponent::switchCommand(QString command)
       if (ok)
         mode.refreshRate = rate;
     }
+    else if (a.startsWith("mode="))
+    {
+      a = a.mid(5);
+      bool ok;
+      int new_id = a.toInt(&ok);
+      if (ok && m_displayManager->isValidDisplayMode(currentDisplay, new_id))
+        best_mode = new_id;
+    }
     else if (a.indexOf("x") >= 0)
     {
       QStringList sub = a.split("x");
@@ -361,27 +392,44 @@ void DisplayComponent::switchCommand(QString command)
   }
 
   QLOG_INFO() << "Current mode:" << current_mode.getPrettyName();
-  QLOG_INFO() << "Mode requested by command:" << mode.getPrettyName();
 
-  foreach (auto cur, m_displayManager->displays[currentDisplay]->videoModes)
+  if (best_mode < 0)
   {
-    // Require matching one digit before the decimal point.
-    // This doesn't work if there are several modes that would match. To do
-    // this without requiring the user to give the refresh rate with full
-    // precision, we'd have to find a closest match instead.
-    if (modeEqualsFuzzy(*cur, mode, 0.1))
+    QLOG_INFO() << "Mode requested by command:" << mode.getPrettyName();
+
+    foreach (auto cur, m_displayManager->displays[currentDisplay]->videoModes)
     {
-      QLOG_INFO() << "Found mode to switch to:" << cur->getPrettyName();
-      if (m_displayManager->setDisplayMode(currentDisplay, cur->id))
+      // "Score" according to what was requested
+      float d_cur = modeDistance(*cur, mode);
+      if (d_cur < 0)
+        continue;
+      if (best_mode < 0)
       {
-        m_lastDisplay = m_lastVideoMode = -1;
+        best_mode = cur->id;
       }
       else
       {
-        QLOG_INFO() << "Switching failed.";
+        // "Score" according to best mode
+        float d_best = modeDistance(*m_displayManager->displays[currentDisplay]->videoModes[best_mode],
+                                    mode);
+        if (d_cur < d_best)
+          best_mode = cur->id;
       }
-      return;
     }
+  }
+
+  if (best_mode >= 0)
+  {
+    QLOG_INFO() << "Found mode to switch to:" << m_displayManager->displays[currentDisplay]->videoModes[best_mode]->getPrettyName();
+    if (m_displayManager->setDisplayMode(currentDisplay, best_mode))
+    {
+      m_lastDisplay = m_lastVideoMode = -1;
+    }
+    else
+    {
+      QLOG_INFO() << "Switching failed.";
+    }
+    return;
   }
 
   QLOG_INFO() << "Requested mode not found.";

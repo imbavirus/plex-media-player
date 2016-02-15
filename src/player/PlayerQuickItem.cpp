@@ -12,10 +12,12 @@
 #include "QsLog.h"
 #include "utils/Utils.h"
 
-#ifdef Q_OS_WIN32
+#if defined(Q_OS_WIN32)
 
 #include <windows.h>
 #include <d3d9.h>
+#include <dwmapi.h>
+#include <avrt.h>
 
 typedef IDirect3D9* WINAPI pDirect3DCreate9(UINT);
 
@@ -73,15 +75,23 @@ void initD3DDevice(void)
 // Special libmpv-specific pseudo extension for better behavior with OpenGL
 // fullscreen modes. This is needed with some drivers which do not allow the
 // libmpv DXVA code to create a new D3D device.
-static void* __stdcall MPGetD3DInterface(const char* name)
+static void* __stdcall MPGetNativeDisplay(const char* name)
 {
   QLOG_INFO() << "Asking for " << qPrintable(QString::fromUtf8((name)));
   if (strcmp(name, "IDirect3DDevice9") == 0)
   {
     QLOG_INFO() << "Returning device " << (void *)d3ddevice;
-    IDirect3DDevice9_AddRef(d3ddevice);
+    if (d3ddevice)
+      IDirect3DDevice9_AddRef(d3ddevice);
     return (void *)d3ddevice;
   }
+  return NULL;
+}
+// defined(Q_OS_WIN32)
+#else
+// Unsupported or not needed. Also, not using Windows-specific calling convention.
+static void* MPGetNativeDisplay(const char* name)
+{
   return NULL;
 }
 #endif
@@ -96,11 +106,11 @@ static void* get_proc_address(void* ctx, const char* name)
     return NULL;
 
   void *res = (void *)glctx->getProcAddress(QByteArray(name));
-#ifdef Q_OS_WIN32
-  if (strcmp(name, "glMPGetD3DInterface") == 0)
+  if (strcmp(name, "glMPGetNativeDisplay") == 0)
   {
-    return (void *)&MPGetD3DInterface;
+    return (void *)&MPGetNativeDisplay;
   }
+#ifdef Q_OS_WIN32
   // wglGetProcAddress(), which is used by Qt, does not always resolve all
   // builtin functions with all drivers (only extensions). Qt compensates this
   // for a degree, but does this only for functions Qt happens to need. So
@@ -117,7 +127,7 @@ static void* get_proc_address(void* ctx, const char* name)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 PlayerRenderer::PlayerRenderer(mpv::qt::Handle mpv, QQuickWindow* window)
-: m_mpv(mpv), m_mpvGL(0), m_window(window), m_size()
+: m_mpv(mpv), m_mpvGL(0), m_window(window), m_size(), m_hAvrtHandle(0)
 {
   m_mpvGL = (mpv_opengl_cb_context *)mpv_get_sub_api(m_mpv, MPV_SUB_API_OPENGL_CB);
 }
@@ -125,11 +135,13 @@ PlayerRenderer::PlayerRenderer(mpv::qt::Handle mpv, QQuickWindow* window)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 bool PlayerRenderer::init()
 {
-  const char *extensions = "";
 #ifdef Q_OS_WIN32
-  // For the custom IDirect3DDevice9 hack above.
-  extensions = "GL_MP_D3D_interfaces";
+  // Request Multimedia Class Schedule Service.
+  DwmEnableMMCSS(TRUE);
 #endif
+
+  // Signals presence of MPGetNativeDisplay().
+  const char *extensions = "GL_MP_MPGetNativeDisplay";
   return mpv_opengl_cb_init_gl(m_mpvGL, extensions, get_proc_address, NULL) >= 0;
 }
 
@@ -144,7 +156,8 @@ PlayerRenderer::~PlayerRenderer()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void PlayerRenderer::render()
 {
-  int fbo = m_window->renderTargetId();
+  GLint fbo = 0;
+  QOpenGLContext::currentContext()->functions()->glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
 
   m_window->resetOpenGLState();
 
@@ -159,6 +172,23 @@ void PlayerRenderer::render()
 void PlayerRenderer::swap()
 {
   mpv_opengl_cb_report_flip(m_mpvGL, 0);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void PlayerRenderer::onPlaybackActive(bool active)
+{
+#ifdef Q_OS_WIN32
+  if (active && !m_hAvrtHandle)
+  {
+    DWORD handle = 0;
+    m_hAvrtHandle = AvSetMmThreadCharacteristicsW(L"Low Latency", &handle);
+  }
+  else if (!active && m_hAvrtHandle)
+  {
+    AvRevertMmThreadCharacteristics(m_hAvrtHandle);
+    m_hAvrtHandle = 0;
+  }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -208,6 +238,7 @@ void PlayerQuickItem::onSynchronize()
     }
     connect(window(), &QQuickWindow::beforeRendering, m_renderer, &PlayerRenderer::render, Qt::DirectConnection);
     connect(window(), &QQuickWindow::frameSwapped, m_renderer, &PlayerRenderer::swap, Qt::DirectConnection);
+    connect(&PlayerComponent::Get(), &PlayerComponent::playbackActive, m_renderer, &PlayerRenderer::onPlaybackActive, Qt::QueuedConnection);
     window()->setPersistentOpenGLContext(true);
     window()->setPersistentSceneGraph(true);
     window()->setClearBeforeRendering(false);
