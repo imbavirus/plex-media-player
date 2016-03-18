@@ -44,6 +44,11 @@
         "default": true
       },
       {
+        "value": "manualUpdateCheck",
+        "input_type": "button",
+        "default": true
+      },
+      {
         "value": "updateChannel",
         "default": 0,
         "possible_values": [
@@ -79,6 +84,11 @@
         // Warning: the default must be the same as the one in preinitQt().
         "default": false,
         "platforms": [ "windows" ]
+      },
+      {
+        "value": "clientUUID",
+        "default": "",
+        "hidden": true
       }
     ]
   },
@@ -362,5 +372,10 @@
           "default": "PlexMediaPlayer"
         }
     ]
+  },
+  {
+    "section": "privacy",
+    "hidden": false,
+    "values": []
   }
 ]

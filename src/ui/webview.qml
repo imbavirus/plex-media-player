@@ -9,17 +9,17 @@ KonvergoWindow
   id: mainWindow
   title: "Plex Media Player"
   objectName: "mainWindow"
-  visible: true
-  minimumHeight: 240
-  minimumWidth: 426
-  height: 720
-  width: 1280
+  minimumHeight: windowMinSize.height
+  minimumWidth: windowMinSize.width
 
-  function getMaxHeightArg()
+  function getInitialScaleArg()
   {
-    if (webMaxHeight > 0)
-      return "?maxHeight=" + (webMaxHeight / Screen.devicePixelRatio);
-    return ""
+    return "?initialScale=" + webScale
+  }
+
+  function maxWebScale()
+  {
+    return webHeightMax ? ((webHeightMax / Screen.devicePixelRatio) / 720) : 10;
   }
 
   MpvVideo
@@ -42,39 +42,18 @@ KonvergoWindow
     profile.httpUserAgent: components.system.getUserAgent()
     transformOrigin: Item.TopLeft
 
-    width: Math.min((parent.height * 16) / 9, parent.width)
-    height: Math.min((parent.width * 9) / 16, parent.height)
-
-    function getDesiredScale()
-    {
-      var verticalScale = height / 720;
-      var horizontalScale = width / 1280;
-
-      return Math.min(verticalScale, horizontalScale);
-    }
-
+    width: parent.width
+    height: parent.height
+    
     scale:
     {
-      var desiredScale = getDesiredScale();
-      var maximumScale = webMaxHeight ? ((webMaxHeight / Screen.devicePixelRatio) / 720) : 10;
-
-      if (desiredScale < maximumScale) {
+      if (mainWindow.windowScale < mainWindow.maxWebScale()) {
         // Web renders at windows scale, no scaling
         return 1;
       } else {
         // Web should max out at maximum scaling
-        return desiredScale / maximumScale;
+        return mainWindow.windowScale / mainWindow.maxWebScale();
       }
-    }
-
-    zoomFactor:
-    {
-      var desiredScale = getDesiredScale();
-
-      if (desiredScale < 1)
-        return desiredScale;
-      else
-       return 1;
     }
 
     Component.onCompleted:
@@ -84,8 +63,7 @@ KonvergoWindow
       backgroundColor : "#111111"
       forceActiveFocus()
       mainWindow.reloadWebClient.connect(reload)
-
-      url = components.settings.value("path", "startupurl") + getMaxHeightArg()
+      url = components.settings.value("path", "startupurl") + getInitialScaleArg();
     }
 
     onLoadingChanged:
@@ -177,10 +155,9 @@ KonvergoWindow
         var dbg = mainWindow.debugInfo + "Window and web\n";
         dbg += "  Window size: " + parent.width + "x" + parent.height + "\n";
         dbg += "  DevicePixel ratio: " + Screen.devicePixelRatio + "\n";
-        dbg += "  Web Max Height: " + (webMaxHeight / Screen.devicePixelRatio) + "\n";
-        dbg += "  Web scale: " + Math.round(web.scale * 100) / 100 + "\n";
-        dbg += "  Desired Scale: " + Math.round(web.getDesiredScale() * 100) / 100 + "\n";
-        dbg += "  Zoom Factor: " + Math.round(web.zoomFactor * 100) / 100 + "\n";
+        dbg += "  Web Max Height: " + (webHeightMax / Screen.devicePixelRatio) + " / Max scale: " + mainWindow.maxWebScale() + "\n";
+        dbg += "  Web scale: " + webScale + " / Window scale: " + windowScale + "\n";
+        dbg += "  Scale applied: " + web.scale + "\n";
 
         return dbg;
       }

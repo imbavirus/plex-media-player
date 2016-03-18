@@ -14,7 +14,8 @@
 #include "ComponentManager.h"
 #include "GDMManager.h"
 #include "server/HTTPServer.h"
-#include "qhttpresponse.h"
+#include "qhttpserverresponse.hpp"
+#include "qhttpserver.hpp"
 #include "RemoteSubscriber.h"
 
 class RemoteComponent : public ComponentBase
@@ -36,7 +37,7 @@ public:
   void handleResource(QHttpRequest* request, QHttpResponse* response);
   void handleCommand(QHttpRequest* request, QHttpResponse* response);
 
-  static QVariantMap HeaderToMap(const HeaderHash& hash);
+  static QVariantMap HeaderToMap(const qhttp::THeaderHash& hash);
   static QVariantMap QueryToMap(const QUrl& url);
 
   Q_INVOKABLE void commandResponse(const QVariantMap& responseArguments);
@@ -58,7 +59,6 @@ private:
   void handleSubscription(QHttpRequest * request, QHttpResponse * response, bool poll=false);
   void subscribeToWeb(bool subscribe);
 
-  HttpServer* m_server;
   GDMManager* m_gdmManager;
 
   quint64 m_commandId;

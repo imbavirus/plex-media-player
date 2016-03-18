@@ -14,6 +14,8 @@
 #include "settings/SettingsComponent.h"
 #include "remote/RemoteComponent.h"
 
+#include "server/HTTPServer.h"
+
 #if KONVERGO_OPENELEC
 #include "system/openelec/OESystemComponent.h"
 #endif
@@ -55,6 +57,11 @@ void ComponentManager::initialize()
   // might have some settings
   //
   registerComponent(&SettingsComponent::Get());
+
+  // start our web server
+  auto server = new HttpServer(this);
+  server->start();
+
   registerComponent(&InputComponent::Get());
   registerComponent(&SystemComponent::Get());
   registerComponent(&DisplayComponent::Get());

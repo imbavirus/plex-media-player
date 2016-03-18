@@ -3,24 +3,27 @@
   "idmatcher": "Keyboard.*",
   "mapping":
   {
-    // standard navigation, we allow num and shift modifiers
-    "(Num\\+|Shift\\+)?Left": "left",
-    "(Num\\+|Shift\\+)?Right": "right",
-    "(Num\\+|Shift\\+)?Up": "up",
-    "(Num\\+|Shift\\+)?Down": "down",
-    "(Num\\+)?(Return|Enter)": "enter",
-    "Space": "space",
-    "(Esc|Backspace)": "back",
+    // standard navigation, we allow shift modifiers
+    "(Shift\\+)?Left": "left",
+    "(Shift\\+)?Right": "right",
+    "(Shift\\+)?Up": "up",
+    "(Shift\\+)?Down": "down",
+    "(Return|Enter)": "enter",
+    "(Esc|Backspace)": {
+      "short": "back",
+      "long": "exitDialog"
+    },
 
-    // map Num+X and Shift+X to X. This allows normal number input
-    "(?:Num\\+|Shift\\+)?([0-9])": "%1",
+    // map X and Shift+X to X. This allows normal number input
+    "(?:Shift\\+)?([0-9])": "%1",
 
     // map some other normal buttons that might be useful
-    "(?:Shift\\+)?(\\.|\\-|\\:|\\_)": "%1",
+    "(?:Shift\\+)?(\\.|\\:|\\_)": "%1",
 
     // map Shift+Letter to action jump+letter
     "Shift\\+([A-Z])": "jump+%1",
 
+    "Space": "play_pause",
     "P": "play_pause",
     "Ctrl\\+P": "pause",
     "X": "stop",
@@ -48,6 +51,7 @@
 
     // emulate some of of PHT's behaviour
     "I": "host:toggleDebug",
+    "W": "toggle_watched",
     "\\\\": "host:fullscreen",
 
     // media keys from the FLIRC and on Linux keyboards
@@ -65,13 +69,16 @@
 
     // Windows Media Center keyboard shortcuts
     "Alt\\+(Return|Enter)": "host:fullscreen",
-    "Ctrl\\+P": "pause",
     "Ctrl\\+Shift\\+P": "play_pause",
     "Ctrl\\+Shift\\+S": "stop",
     "Ctrl\\+Shift\\+B": "seek_backward",
     "Ctrl\\+Shift\\+G": "seek_forward",
     "Ctrl\\+B": "step_backward",
     "Ctrl\\+G": "step_forward",
+
+    // volume
+    "\\+": "increase_volume",
+    "\\-": "decrease_volume",
 
     // debug command to crash the host. for testing
     "Ctrl\\+Alt\\+Shift\\+F1": "host:crash!"

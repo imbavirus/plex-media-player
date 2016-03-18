@@ -6,8 +6,10 @@ include(FetchDependencies)
 if(APPLE AND NOT DISABLE_BUNDLED_DEPS)  
   download_deps(
     "plexmediaplayer-dependencies"
-     ARTIFACTNAME konvergo-depends
-     DIRECTORY dir
+    ARTIFACTNAME konvergo-depends
+    DIRECTORY dir
+    DEPHASH_VAR DEPS_HASH
+    DYLIB_SCRIPT_PATH ${PROJECT_SOURCE_DIR}/scripts/fix-install-names.py
   )
   message("dependencies are: ${dir}")
   set(DEFAULT_ROOT ${dir})
@@ -19,10 +21,11 @@ if(WIN32)
     DIRECTORY dir
     ARTIFACTNAME konvergo-depends-windows
     ARCHSTR mingw32-x86_64
+    DEPHASH_VAR DEPS_HASH
   )
   if(NOT EXISTS ${dir}/lib/mpv.lib)
     execute_process(
-      COMMAND LIB /def:bin\\mpv-1.def /out:lib\\mpv.lib /MACHINE:X64
+      COMMAND ${PROJECT_SOURCE_DIR}/scripts/make_mpv_lib.bat
       WORKING_DIRECTORY ${dir}
     )
   endif(NOT EXISTS ${dir}/lib/mpv.lib)
@@ -52,11 +55,3 @@ endif(IS_DIRECTORY ${DEPENDENCY_ROOT})
 
 find_package(Threads REQUIRED)
 find_package(PythonInterp REQUIRED)
-
-# on windows we need to download the updater binary seperately
-if(WIN32)
-  file(DOWNLOAD https://nightlies.plex.tv/directdl/plex-dependencies/konvergo-qt/updater.exe ${CMAKE_BINARY_DIR}/updater.exe
-       SHOW_PROGRESS
-       EXPECTED_HASH SHA1=d3b4f70d6542fa42c8edd2b9b93fd0916bf20f07
-       TLS_VERIFY OFF)
-endif(WIN32)

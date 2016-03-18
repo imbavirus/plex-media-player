@@ -9,8 +9,12 @@
 #include "utils/HelperLauncher.h"
 #include "system/SystemComponent.h"
 
-#if KONVERGO_OPENELEC
+#ifdef KONVERGO_OPENELEC
 #include "OEUpdateManager.h"
+#endif
+
+#ifdef Q_OS_WIN
+#include "UpdateManagerWin32.h"
 #endif
 
 UpdateManager* g_updateManager;
@@ -20,10 +24,12 @@ UpdateManager* UpdateManager::Get()
 {
   if (!g_updateManager)
   {
-#if KONVERGO_OPENELEC
-    g_updateManager = new OEUpdateManager(NULL);
+#if defined(KONVERGO_OPENELEC)
+    g_updateManager = new OEUpdateManager(nullptr);
+#elif defined(Q_OS_WIN)
+    g_updateManager = new UpdateManagerWin32(nullptr);
 #else
-    g_updateManager = new UpdateManager(NULL);
+    g_updateManager = new UpdateManager(nullptr);
 #endif
   }
 
@@ -48,11 +54,24 @@ QString UpdateManager::HaveUpdate()
   {
     // check if this version has been applied
     QString readyFile(GetPath("_readyToApply", dir, false));
+    QString packagesDir(GetPath("packages", dir, false));
+
     QLOG_DEBUG() << "Checking for:" << readyFile;
+
+    QDir packageDir(GetPath("packages", dir, false));
+
     if (QFile::exists(readyFile))
     {
       QLOG_DEBUG() << dir << "is not applied";
       return dir;
+    }
+    else if (packageDir.exists())
+    {
+      QLOG_DEBUG() << "Removing old update packages in dir:" << dir;
+      if (!packageDir.removeRecursively())
+      {
+        QLOG_WARN() << "Failed to remove old update packages in dir:" << dir;
+      }
     }
   }
 

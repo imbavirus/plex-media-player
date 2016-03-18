@@ -9,9 +9,10 @@ if(NOT IS_DIRECTORY ${QTROOT})
   download_deps(
 		"plexmediaplayer-qt"
 		DIRECTORY dir
-		DEPHASH QT_DEPS_HASH
+		DEPHASH_VAR QT_DEPS_HASH
     ARTIFACTNAME konvergo-qt
     ${WINARCHSTR}
+    DYLIB_SCRIPT_PATH ${PROJECT_SOURCE_DIR}/scripts/fix-install-names.py
 	)
   set(QTROOT ${dir})
 endif()
@@ -31,7 +32,7 @@ set(REQUIRED_QT_VERSION "5.6.0")
 message(STATUS ${QTROOT})
 
 set(QTCONFIGROOT ${QTROOT}/lib/cmake/Qt5)
-set(components Core Network WebChannel Qml Quick Xml WebEngine)
+set(components Core Network WebChannel Qml Quick Xml WebEngine Widgets)
 
 if(OPENELEC)
   set(components ${components} DBus)
@@ -55,10 +56,12 @@ foreach(COMP ${components})
 	list(APPEND QT5_CFLAGS ${${mod}_EXECUTABLE_COMPILE_FLAGS})
 endforeach(COMP ${components})
 
-list(REMOVE_DUPLICATES QT5_CFLAGS)
-if(WIN32)
-  list(REMOVE_ITEM QT5_CFLAGS -fPIC)
-endif(WIN32)
+if(QT5_CFLAGS)
+	list(REMOVE_DUPLICATES QT5_CFLAGS)
+  if(WIN32)
+    list(REMOVE_ITEM QT5_CFLAGS -fPIC)
+  endif(WIN32)
+endif(QT5_CFLAGS)
 
 message(STATUS "Qt version: ${Qt5Core_VERSION_STRING}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${QT5_CFLAGS}")

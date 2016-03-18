@@ -117,6 +117,9 @@ bool PlayerComponent::componentInitialize()
   mpv::qt::set_option_variant(m_mpv, "demuxer-max-bytes", 50 * 1024 * 1024); // bytes
   // Specifically for enabling mpeg4.
   mpv::qt::set_option_variant(m_mpv, "hwdec-codecs", "all");
+  // Do not use exact seeks by default. (This affects the start position in the "loadfile"
+  // command in particular. We override the seek mode for normal "seek" commands.)
+  mpv::qt::set_option_variant(m_mpv, "hr-seek", "no");
 #endif
 
   mpv_observe_property(m_mpv, 0, "pause", MPV_FORMAT_FLAG);
@@ -224,19 +227,23 @@ void PlayerComponent::queueMedia(const QString& url, const QVariantMap& options,
   if (startMilliseconds != 0)
     extraArgs.insert("start", "+" + QString::number(startMilliseconds / 1000.0));
 
+  // force default audio selection
+  extraArgs.insert("ff-aid", "auto");
+
+  // by default ignore all subtitles, unless overridden
+  extraArgs.insert("sid", "no");
+  extraArgs.insert("ff-sid", "auto");
+
   // detect subtitles
   if (!subtitleStream.isEmpty())
   {
     // If the stream title starts with a #, then it's an index
     if (subtitleStream.startsWith("#"))
       extraArgs.insert("ff-sid", subtitleStream.mid(1));
-    else
+    else {
       extraArgs.insert("sub-file", subtitleStream);
-  }
-  else
-  {
-    // no subtitles, tell mpv to ignore them.
-    extraArgs.insert("sid", "no");
+      extraArgs.insert("sid", "auto"); // select the external one by default
+    }
   }
 
   if (metadata["type"] == "music")
@@ -247,6 +254,10 @@ void PlayerComponent::queueMedia(const QString& url, const QVariantMap& options,
     extraArgs.insert("ff-aid", audioStream);
 
   extraArgs.insert("pause", options["autoplay"].toBool() ? "no" : "yes");
+
+  QString userAgent = metadata["headers"].toMap()["User-Agent"].toString();
+  if (userAgent.size())
+    extraArgs.insert("user-agent", userAgent);
 
   command << extraArgs;
 
@@ -391,7 +402,7 @@ void PlayerComponent::handleMpvEvent(mpv_event *event)
       else if (strcmp(prop->name, "playback-time") == 0 && prop->format == MPV_FORMAT_DOUBLE)
       {
         double pos = *(double*)prop->data;
-        if (fabs(pos - m_lastPositionUpdate) > 0.25)
+        if (fabs(pos - m_lastPositionUpdate) > 0.015)
         {
           quint64 ms = (quint64)(qMax(pos * 1000.0, 0.0));
           emit positionUpdate(ms);
@@ -521,9 +532,8 @@ void PlayerComponent::pause()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void PlayerComponent::seekTo(qint64 ms)
 {
-  double start = mpv::qt::get_property_variant(m_mpv, "time-start").toDouble();
-  QString timeStr = QString::number(ms / 1000.0 + start);
-  QStringList args = (QStringList() << "seek" << timeStr << "absolute");
+  double timeSecs = ms / 1000.0;
+  QVariantList args = (QVariantList() << "seek" << timeSecs << "absolute+exact");
   mpv::qt::command_variant(m_mpv, args);
 }
 
@@ -584,7 +594,7 @@ void PlayerComponent::setSubtitleStream(const QString &subtitleStream)
   }
   else
   {
-    QStringList args = (QStringList() << "sub_add" << subtitleStream << "cached");
+    QStringList args = (QStringList() << "sub-add" << subtitleStream << "cached");
     mpv::qt::command_variant(m_mpv, args);
   }
 }
@@ -621,7 +631,7 @@ void PlayerComponent::setSubtitleDelay(qint64 milliseconds)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void PlayerComponent::onReloadAudio()
 {
-  mpv::qt::command_variant(m_mpv, QStringList() << "ao_reload");
+  mpv::qt::command_variant(m_mpv, QStringList() << "ao-reload");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

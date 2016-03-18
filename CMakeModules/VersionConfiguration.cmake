@@ -1,7 +1,6 @@
 # Get the current date.
-include(GetDate)
 include(WebClientVariables)
-today(CURRENT_DATE)
+string(TIMESTAMP CURRENT_DATE "%Y-%m-%d")
 
 # Get git revision version
 include(GetGitRevisionDescription)
@@ -22,9 +21,19 @@ else()
 endif()
 
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 0)
-set(VERSION_NANO 4)
+set(VERSION_MINOR 1)
+set(VERSION_NANO 0)
 
-set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_NANO}.${VERSION_BUILD}-${GIT_REVISION}")
-set(CANONICAL_VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_NANO}-${GIT_REVISION}")
+option(UPGRADE_DEBUG "" OFF)
+
+if(UPGRADE_DEBUG)
+  set(VERSION_STRING "1.0.4.177-195ef65f")
+  set(VERSION_STRING_SHORT "1.0.4")
+  set(CANONICAL_VERSION_STRING "1.0.4-195ef65f")
+else()
+  set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_NANO}.${VERSION_BUILD}-${GIT_REVISION}")
+  set(VERSION_STRING_SHORT "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_NANO}")
+  set(CANONICAL_VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_NANO}-${GIT_REVISION}")
+endif()
+
 configure_file(src/Version.cpp.in src/Version.cpp)

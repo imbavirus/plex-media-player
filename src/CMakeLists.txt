@@ -1,5 +1,5 @@
 include_directories(
-  ${CMAKE_SOURCE_DIR}/external/qhttpserver/src
+  ${CMAKE_SOURCE_DIR}/external/qhttp/src
   ${CMAKE_SOURCE_DIR}/external/qslog
   ${CMAKE_SOURCE_DIR}/external/SPMediaKeyTap
   ${CMAKE_SOURCE_DIR}/external/plistparser
@@ -84,12 +84,10 @@ add_custom_command(OUTPUT resources.qrc
           ${CMAKE_CURRENT_BINARY_DIR}/resources.qrc
           /=${CMAKE_SOURCE_DIR}/resources/
           ui/webview.qml=${CMAKE_SOURCE_DIR}/src/ui/webview.qml
-          ui/errormessage.qml=${CMAKE_SOURCE_DIR}/src/ui/errormessage.qml
   COMMENT "Creating resources.qrc"
   DEPENDS ${CMAKE_SOURCE_DIR}/scripts/build-qt-resources.py
     ${RESOURCE_FILES}
     ${CMAKE_SOURCE_DIR}/src/ui/webview.qml
-    ${CMAKE_SOURCE_DIR}/src/ui/errormessage.qml
 )
 set_source_files_properties(resources.qrc PROPERTIES GENERATED TRUE)
 add_custom_command(OUTPUT qrc_resources.cpp
@@ -111,6 +109,12 @@ if(APPLE)
     set_source_files_properties(${UPDATER_PATH} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
   endif(HAVE_UPDATER)
 
+  set_source_files_properties(
+    input/apple/HIDRemote/HIDRemote.h
+    input/apple/HIDRemote/HIDRemote.m
+    PROPERTIES COMPILE_FLAGS -fno-objc-arc
+  )
+
   set(PLISTPARSER plistparser)
 endif()
 
@@ -122,7 +126,6 @@ set(MACOSX_BUNDLE_GUI_IDENTIFIER tv.plex.player)
 
 if(WIN32)
   list(APPEND RESOURCE_FILES ${CMAKE_SOURCE_DIR}/bundle/win/iconres.rc)
-  install(PROGRAMS ${CMAKE_BINARY_DIR}/updater.exe DESTINATION ${INSTALL_BIN_DIR})
 endif()
 
 get_property(BUNDLED_FILES GLOBAL PROPERTY CONFIG_BUNDLED_FILES)
@@ -147,7 +150,7 @@ endif(APPLE)
 
 target_link_libraries(${MAIN_TARGET}
   shared
-  qhttpserver
+  qhttp
   qslog
   ${PLISTPARSER}
   ${MPV_LIBRARY}
