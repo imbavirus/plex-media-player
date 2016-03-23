@@ -10,8 +10,8 @@ class SignalManager : public QObject
   Q_OBJECT
 
 public:
-  SignalManager(QGuiApplication* app);
-  ~SignalManager() {}
+  explicit SignalManager(QGuiApplication* app);
+  ~SignalManager() override {}
 
   // Unix signal handlers.
   static void signalHandler(int signal_num);
@@ -24,9 +24,9 @@ public slots:
   void handleSignal();
 
 private:
-  static int sigtermFd[2];
+  static int g_sigtermFd[2];
 
-  QSocketNotifier* snTerm;
+  QSocketNotifier* m_snTerm;
   QGuiApplication* m_app;
 };
 

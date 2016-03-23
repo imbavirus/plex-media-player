@@ -7,11 +7,11 @@
 class KeyAction
 {
 public:
-  QString action;
-  bool hasLongPress;
+  QString m_action;
+  bool m_hasLongPress;
 };
 
-static QMap<int, KeyAction> cecKeyMap   { \
+static QMap<int, KeyAction> g_cecKeyMap   { \
                                         { CEC_USER_CONTROL_CODE_SELECT , { INPUT_KEY_SELECT , false } } , \
                                         { CEC_USER_CONTROL_CODE_UP , { INPUT_KEY_UP , false } } , \
                                         { CEC_USER_CONTROL_CODE_DOWN , { INPUT_KEY_DOWN , false } } , \
@@ -52,7 +52,7 @@ InputCEC::InputCEC(QObject *parent) : InputBase(parent)
   m_cecThread = new QThread(this);
   m_cecThread->setObjectName("InputCEC");
 
-  m_cecWorker = new InputCECWorker(NULL);
+  m_cecWorker = new InputCECWorker(nullptr);
   m_cecWorker->moveToThread(m_cecThread);
 
   m_cecThread->start(QThread::LowPriority);
@@ -77,7 +77,7 @@ bool InputCECWorker::init()
   m_verboseLogging = SettingsComponent::Get().value(SETTINGS_SECTION_CEC, "verbose_logging").toBool();
 
   m_configuration.clientVersion = LIBCEC_VERSION_CURRENT;
-  strcpy(m_configuration.strDeviceName, "Plex");
+  qstrcpy(m_configuration.strDeviceName, "Plex");
   m_configuration.bActivateSource = 0;
   m_callbacks.CBCecLogMessage = &CecLogMessage;
   m_callbacks.CBCecKeyPress = &CecKeyPress;
@@ -143,7 +143,7 @@ bool InputCECWorker::openAdapter()
 
   // try to find devices
   cec_adapter_descriptor devices[10];
-  int devicesCount = m_adapter->DetectAdapters(devices, 10, NULL, false);
+  int devicesCount = m_adapter->DetectAdapters(devices, 10, nullptr, false);
   if (devicesCount > 0)
   {
     // list devices
@@ -195,12 +195,12 @@ QString InputCECWorker::getCommandString(cec_user_control_code code, unsigned in
 {
   QString key;
 
-  if (cecKeyMap.contains(code))
+  if (g_cecKeyMap.contains(code))
   {
-    KeyAction keyaction = cecKeyMap[code];
-    key = keyaction.action;
+    KeyAction keyaction = g_cecKeyMap[code];
+    key = keyaction.m_action;
 
-    if ((duration > CEC_LONGPRESS_DURATION) && keyaction.hasLongPress)
+    if ((duration > CEC_LONGPRESS_DURATION) && keyaction.m_hasLongPress)
     {
       key += "_LONG";
     }

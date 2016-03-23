@@ -15,8 +15,8 @@ class InputKeyboard : public InputBase
   DEFINE_SINGLETON(InputKeyboard);
 
 public:
-  virtual bool initInput() { return true; }
-  virtual const char* inputName() { return "Keyboard"; }
+  bool initInput() override { return true; }
+  const char* inputName() override { return "Keyboard"; }
 
   void keyPress(const QKeySequence& sequence, bool press)
   {
@@ -24,7 +24,7 @@ public:
   }
 
 private:
-  explicit InputKeyboard(QObject* parent = 0) : InputBase(parent) {}
+  explicit InputKeyboard(QObject* parent = nullptr) : InputBase(parent) {}
 };
 
 #endif //KONVERGO_INPUTKEYBOARD_H

@@ -303,7 +303,7 @@ void SettingsComponent::resetToDefault()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-struct section_order_index
+struct SectionOrderIndex
 {
   inline bool operator ()(SettingsSection* a, SettingsSection* b)
   {
@@ -317,7 +317,7 @@ QVariantList SettingsComponent::settingDescriptions()
   QJsonArray desc;
 
   QList<SettingsSection*> sectionList = m_sections.values();
-  std::sort(sectionList.begin(), sectionList.end(), section_order_index());
+  std::sort(sectionList.begin(), sectionList.end(), SectionOrderIndex());
 
   foreach(SettingsSection* section, sectionList)
   {
@@ -383,7 +383,7 @@ void SettingsComponent::parseSection(const QJsonObject& sectionObject)
 
   int platformMask = platformMaskFromObject(sectionObject);
 
-  SettingsSection* section = new SettingsSection(sectionName, (quint8)platformMask, m_sectionIndex ++, this);
+  auto  section = new SettingsSection(sectionName, (quint8)platformMask, m_sectionIndex ++, this);
   section->setHidden(sectionObject.value("hidden").toBool(false));
   section->setStorage(sectionObject.value("storage").toBool(false));
 
@@ -537,7 +537,7 @@ bool SettingsComponent::componentInitialize()
   // then run the signal the first time to make sure that we set the proper visibility
   // on the items from the start.
   //
-  AudioSettingsController* ctrl = new AudioSettingsController(this);
+  auto  ctrl = new AudioSettingsController(this);
   QVariantMap val;
   val.insert("devicetype", value(SETTINGS_SECTION_AUDIO, "devicetype"));
   val.insert("advanced", value(SETTINGS_SECTION_AUDIO, "advanced"));
@@ -588,5 +588,12 @@ void SettingsComponent::setUserRoleList(const QStringList& userRoles)
   }
 
   updatePossibleValues(SETTINGS_SECTION_MAIN, "updateChannel", values);
-
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////
+bool SettingsComponent::resetAndSaveOldConfiguration()
+{
+  QFile settingsFile(Paths::dataDir("plexmediaplayer.conf"));
+  return settingsFile.rename(Paths::dataDir("plexmediaplayer.conf.old"));
+}
+

@@ -12,15 +12,15 @@ class InputSocket : public InputBase
 {
   Q_OBJECT
 public:
-  explicit InputSocket(QObject* parent = 0) : InputBase(parent)
+  explicit InputSocket(QObject* parent = nullptr) : InputBase(parent)
   {
     m_server = new LocalJsonServer("inputSocket");
     connect(m_server, &LocalJsonServer::clientConnected, this, &InputSocket::clientConnected);
     connect(m_server, &LocalJsonServer::messageReceived, this, &InputSocket::messageReceived);
   }
 
-  virtual bool initInput() override;
-  virtual const char* inputName() override { return "socket"; };
+  bool initInput() override;
+  const char* inputName() override { return "socket"; };
 
 private Q_SLOTS:
   void clientConnected(QLocalSocket* socket);

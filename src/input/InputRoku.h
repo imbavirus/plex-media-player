@@ -14,9 +14,9 @@ class InputRoku : public InputBase
   Q_OBJECT
 
 public:
-  explicit InputRoku(QObject* parent = 0) : InputBase(parent) { }
-  virtual bool initInput() override;
-  virtual const char* inputName() override { return "roku"; };
+  explicit InputRoku(QObject* parent = nullptr) : InputBase(parent) { }
+  bool initInput() override;
+  const char* inputName() override { return "roku"; };
 
 private:
   void handleRequest(qhttp::server::QHttpRequest* request, qhttp::server::QHttpResponse* response);

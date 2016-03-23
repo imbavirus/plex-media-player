@@ -23,13 +23,13 @@ class PlayerComponent : public ComponentBase
   DEFINE_SINGLETON(PlayerComponent);
 
 public:
-  virtual const char* componentName() { return "player"; }
-  virtual bool componentExport() { return true; }
-  virtual bool componentInitialize();
-  virtual void componentPostInitialize();
+  const char* componentName() override { return "player"; }
+  bool componentExport() override { return true; }
+  bool componentInitialize() override;
+  void componentPostInitialize() override;
   
-  explicit PlayerComponent(QObject* parent = 0);
-  virtual ~PlayerComponent();
+  explicit PlayerComponent(QObject* parent = nullptr);
+  ~PlayerComponent() override;
 
   // Deprecated. Corresponds to stop() + queueMedia().
   Q_INVOKABLE bool load(const QString& url, const QVariantMap& options, const QVariantMap& metadata, const QString& audioStream = QString(), const QString& subtitleStream = QString());
@@ -47,7 +47,7 @@ public:
   // If you want to wipe everything, use stop().
   Q_INVOKABLE void clearQueue();
 
-  Q_INVOKABLE virtual void seekTo(qint64 milliseconds);
+  Q_INVOKABLE virtual void seekTo(qint64 ms);
 
   // Stop playback and clear all queued items.
   Q_INVOKABLE virtual void stop();
@@ -177,7 +177,7 @@ private:
 
   double m_lastPositionUpdate;
   qint64 m_playbackAudioDelay;
-  QString m_CurrentUrl;
+  QString m_currentUrl;
   bool m_playbackStartSent;
   QQuickWindow* m_window;
   float m_mediaFrameRate;

@@ -19,13 +19,13 @@ class Update : public QObject
 {
   Q_OBJECT
 public:
-  Update(const QString& url = "", const QString& localPath = "",
-         const QString& hash = "", QObject* parent = NULL) : QObject(parent)
+  explicit Update(const QString& url = "", const QString& localPath = "",
+         const QString& hash = "", QObject* parent = nullptr) : QObject(parent)
   {
     m_url = url;
     m_localPath = localPath;
     m_hash = hash;
-    m_reply = NULL;
+    m_reply = nullptr;
     m_openFile = new QFile(m_localPath);
   }
 
@@ -34,14 +34,14 @@ public:
   {
     if (m_reply)
     {
-      disconnect(m_reply, 0, 0, 0);
+      disconnect(m_reply, nullptr, nullptr, nullptr);
       m_reply->deleteLater();
-      m_reply = NULL;
+      m_reply = nullptr;
       m_openFile->close();
     }
 
     m_reply = reply;
-    m_timeStarted = time(NULL);
+    m_timeStarted = time(nullptr);
 
     connect(m_reply, &QNetworkReply::readyRead, this, &Update::write);
     connect(m_reply, &QNetworkReply::finished, this, &Update::finished);
@@ -50,7 +50,7 @@ public:
       return true;
 
     m_reply->deleteLater();
-    m_reply = NULL;
+    m_reply = nullptr;
 
     return false;
   }
@@ -67,9 +67,9 @@ public:
   {
     m_openFile->close();
     m_reply->deleteLater();
-    m_reply = NULL;
+    m_reply = nullptr;
 
-    QLOG_DEBUG() << "Update downloaded, took:" << time(NULL) - m_timeStarted << "seconds";
+    QLOG_DEBUG() << "Update downloaded, took:" << time(nullptr) - m_timeStarted << "seconds";
 
     emit fileDone(this);
   }
@@ -137,9 +137,9 @@ class UpdaterComponent : public ComponentBase
   DEFINE_SINGLETON(UpdaterComponent);
 
 public:
-  virtual bool componentExport() { return true; }
-  virtual const char* componentName() { return "updater"; }
-  virtual bool componentInitialize() { return true; }
+  bool componentExport() override { return true; }
+  const char* componentName() override { return "updater"; }
+  bool componentInitialize() override { return true; }
 
   Q_INVOKABLE void downloadUpdate(const QVariantMap &updateInfo);
   Q_INVOKABLE void doUpdate();
@@ -155,7 +155,7 @@ private slots:
   bool fileComplete(Update *update);
 
 private:
-  explicit UpdaterComponent(QObject *parent = 0);
+  explicit UpdaterComponent(QObject *parent = nullptr);
 
   bool isDownloading();
   void downloadFile(Update *update);

@@ -31,18 +31,15 @@ class SettingsComponent : public ComponentBase
   DEFINE_SINGLETON(SettingsComponent);
 
 public:
-  bool componentInitialize();
+  bool componentInitialize() override;
   void componentPostInitalize();
 
-  const char* componentName() { return "settings"; }
-  bool componentExport() { return true; }
+  const char* componentName() override { return "settings"; }
+  bool componentExport() override { return true; }
 
   SettingsSection* getSection(const QString& sectionID)
   {
-    if (m_sections.contains(sectionID))
-      return m_sections.value(sectionID);
-    else
-      return nullptr;
+    return m_sections.value(sectionID, nullptr);
   }
 
   // JS interface
@@ -69,10 +66,16 @@ public:
 
   // A hack to load a value from the config file at very early init time, before
   // the SettingsComponent is created.
+  //
   static QVariant readPreinitValue(const QString& sectionID, const QString& key);
 
+  // Moves the current settings file to plexmediaplayer.conf.old to make way for new
+  // configuration.
+  //
+  static bool resetAndSaveOldConfiguration();
+
 private:
-  explicit SettingsComponent(QObject *parent = 0);
+  explicit SettingsComponent(QObject *parent = nullptr);
   bool loadDescription();
   void parseSection(const QJsonObject& sectionObject);
   int platformMaskFromObject(const QJsonObject& object);

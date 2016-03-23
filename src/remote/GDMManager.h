@@ -11,8 +11,8 @@ class GDMManager : public QObject
 {
   Q_OBJECT
 public:
-  explicit GDMManager(QObject *parent = 0);
-  ~GDMManager() { stopAnnouncing(); }
+  explicit GDMManager(QObject *parent = nullptr);
+  ~GDMManager() override { stopAnnouncing(); }
   void startAnnouncing();
   void stopAnnouncing();
 

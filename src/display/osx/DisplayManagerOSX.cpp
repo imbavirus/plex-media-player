@@ -17,7 +17,7 @@ bool DisplayManagerOSX::initialize()
 {
   int totalModes = 0;
 
-  displays.clear();
+  m_displays.clear();
 
   for (int i = 0; i < m_osxDisplayModes.size(); i++)
   {
@@ -38,11 +38,11 @@ bool DisplayManagerOSX::initialize()
   {
     // add the display to the list
     DMDisplayPtr display = DMDisplayPtr(new DMDisplay);
-    display->id = displayid;
-    display->name = QString("Display %1").arg(displayid);
-    displays[display->id] = display;
+    display->m_id = displayid;
+    display->m_name = QString("Display %1").arg(displayid);
+    m_displays[display->m_id] = display;
 
-    m_osxDisplayModes[displayid] = CGDisplayCopyAllDisplayModes(m_osxDisplays[displayid], NULL);
+    m_osxDisplayModes[displayid] = CGDisplayCopyAllDisplayModes(m_osxDisplays[displayid], nullptr);
     if (!m_osxDisplayModes[displayid])
       continue;
 
@@ -54,33 +54,32 @@ bool DisplayManagerOSX::initialize()
       
       // add the videomode to the display
       DMVideoModePtr mode = DMVideoModePtr(new DMVideoMode);
-      mode->id = modeid;
-      display->videoModes[modeid] = mode;
+      mode->m_id = modeid;
+      display->m_videoModes[modeid] = mode;
 
       // grab videomode info
       CGDisplayModeRef displayMode =
       (CGDisplayModeRef)CFArrayGetValueAtIndex(m_osxDisplayModes[displayid], modeid);
 
-      mode->height = CGDisplayModeGetHeight(displayMode);
-      mode->width = CGDisplayModeGetWidth(displayMode);
-      mode->refreshRate = CGDisplayModeGetRefreshRate(displayMode);
+      mode->m_height = CGDisplayModeGetHeight(displayMode);
+      mode->m_width = CGDisplayModeGetWidth(displayMode);
+      mode->m_refreshRate = CGDisplayModeGetRefreshRate(displayMode);
 
       CFStringRef pixEnc = CGDisplayModeCopyPixelEncoding(displayMode);
 
-      if (CFStringCompare(pixEnc, CFSTR(IO32BitDirectPixels), kCFCompareCaseInsensitive) ==
-          kCFCompareEqualTo)
-        mode->bitsPerPixel = 32;
-      else if (CFStringCompare(pixEnc, CFSTR(IO16BitDirectPixels), kCFCompareCaseInsensitive) ==
-               kCFCompareEqualTo)
-        mode->bitsPerPixel = 16;
-      else if (CFStringCompare(pixEnc, CFSTR(IO8BitIndexedPixels), kCFCompareCaseInsensitive) ==
-               kCFCompareEqualTo)
-        mode->bitsPerPixel = 8;
+      if (CFStringCompare(pixEnc, CFSTR(IO32BitDirectPixels), kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+        mode->m_bitsPerPixel = 32;
+      else if (CFStringCompare(pixEnc, CFSTR(IO16BitDirectPixels), kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+        mode->m_bitsPerPixel = 16;
+      else if (CFStringCompare(pixEnc, CFSTR(IO8BitIndexedPixels), kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+        mode->m_bitsPerPixel = 8;
 
-      mode->interlaced = (CGDisplayModeGetIOFlags(displayMode) & kDisplayModeInterlacedFlag) > 0;
+      CFRelease(pixEnc);
 
-      if (mode->refreshRate == 0)
-        mode->refreshRate = 60;
+      mode->m_interlaced = (CGDisplayModeGetIOFlags(displayMode) & kDisplayModeInterlacedFlag) > 0;
+
+      if (mode->m_refreshRate == 0)
+        mode->m_refreshRate = 60;
     }
   }
 
@@ -99,7 +98,7 @@ bool DisplayManagerOSX::setDisplayMode(int display, int mode)
   CGDisplayModeRef displayMode =
   (CGDisplayModeRef)CFArrayGetValueAtIndex(m_osxDisplayModes[display], mode);
 
-  CGError err = CGDisplaySetDisplayMode(m_osxDisplays[display], displayMode, NULL);
+  CGError err = CGDisplaySetDisplayMode(m_osxDisplays[display], displayMode, nullptr);
   if (err)
   {
     QLOG_ERROR() << "CGDisplaySetDisplayMode() returned failure:" << err;
@@ -126,9 +125,11 @@ int DisplayManagerOSX::getCurrentDisplayMode(int display)
   {
     if (currentMode == (CGDisplayModeRef)CFArrayGetValueAtIndex(m_osxDisplayModes[display], mode))
     {
+      CFRelease(currentMode);
       return mode;
     }
   }
+  CFRelease(currentMode);
 
   return -1;
 };

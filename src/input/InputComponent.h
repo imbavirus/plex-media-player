@@ -12,7 +12,7 @@ class InputBase : public QObject
 {
   Q_OBJECT
 public:
-  InputBase(QObject* parent = 0) : QObject(parent) { }
+  explicit InputBase(QObject* parent = nullptr) : QObject(parent) { }
   virtual bool initInput() = 0;
   virtual const char* inputName() = 0;
   
@@ -70,9 +70,9 @@ signals:
 
 struct ReceiverSlot
 {
-  QObject* receiver;
-  QByteArray slot;
-  bool hasArguments;
+  QObject* m_receiver;
+  QByteArray m_slot;
+  bool m_hasArguments;
 };
 
 class InputComponent : public ComponentBase
@@ -81,9 +81,9 @@ class InputComponent : public ComponentBase
   DEFINE_SINGLETON(InputComponent);
 
 public:
-  virtual const char* componentName() { return "input"; }
-  virtual bool componentExport() { return true; }
-  virtual bool componentInitialize();
+  const char* componentName() override { return "input"; }
+  bool componentExport() override { return true; }
+  bool componentInitialize() override;
 
   void registerHostCommand(const QString& command, QObject* receiver, const char* slot);
 
@@ -94,8 +94,8 @@ private Q_SLOTS:
   void remapInput(const QString& source, const QString& keycode, bool pressDown = true);
   
 private:
-  InputComponent(QObject *parent = 0);
-  bool addInput(InputBase* input);
+  explicit InputComponent(QObject *parent = nullptr);
+  bool addInput(InputBase* base);
   void handleAction(const QString& action, bool autoRepeat = true);
 
   QHash<QString, ReceiverSlot*> m_hostCommands;

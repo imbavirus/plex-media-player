@@ -9,8 +9,8 @@ class UpdateManager : public QObject
 public:
   static bool CheckForUpdates();
 
-  explicit UpdateManager(QObject *parent = 0) {};
-  ~UpdateManager() {};
+  explicit UpdateManager(QObject *parent = nullptr) {};
+  ~UpdateManager() override {};
 
   static UpdateManager* Get();
 
